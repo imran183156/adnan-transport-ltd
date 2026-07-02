@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GitHub Admin | Adnan's Transport Limited</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body{background:#f4f8fb;color:#112532}.wrap{max-width:980px;margin:35px auto}.card{border:0;border-radius:20px;box-shadow:0 18px 45px rgba(9,40,59,.12)}label{font-weight:700}.small-help{font-size:13px;color:#637381}.hidden{display:none}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  </style>
+</head>
+<body>
+<div class="container wrap">
+  <div class="card p-4 mb-4">
+    <div class="d-flex flex-wrap justify-content-between gap-3 align-items-center">
+      <div>
+        <h1 class="fw-bold mb-1">Website Admin</h1>
+        <p class="mb-0 text-muted">GitHub Pages compatible admin panel. It updates <span class="mono">data.json</span> in your GitHub repository.</p>
+      </div>
+      <a class="btn btn-outline-primary" href="index.html" target="_blank">View Website</a>
+    </div>
+  </div>
+
+  <div id="setupCard" class="card p-4 mb-4">
+    <h3 class="fw-bold">1) Connect GitHub</h3>
+    <div class="alert alert-info">GitHub Pages cannot run PHP/MySQL. This admin panel is dynamic by saving your website content into your GitHub repository through GitHub API.</div>
+    <div class="row g-3">
+      <div class="col-md-4"><label>GitHub username</label><input id="owner" class="form-control" placeholder="example: imran183156"></div>
+      <div class="col-md-4"><label>Repository name</label><input id="repo" class="form-control" placeholder="example: adnans-transport"></div>
+      <div class="col-md-4"><label>Branch</label><input id="branch" class="form-control" value="main"></div>
+      <div class="col-12"><label>Fine-grained GitHub token</label><input id="token" type="password" class="form-control" placeholder="github_pat_... or ghp_..."></div>
+      <div class="col-12 small-help">Token needs repository Contents: Read and Write permission. Do not share this token. It is stored only in your browser localStorage.</div>
+      <div class="col-12 d-flex gap-2 flex-wrap"><button class="btn btn-success" onclick="saveSettings()">Save Connection</button><button class="btn btn-outline-secondary" onclick="loadFromGithub()">Load Content</button><button class="btn btn-outline-danger" onclick="clearSettings()">Clear Saved Token</button></div>
+    </div>
+  </div>
+
+  <div id="status" class="alert hidden"></div>
+
+  <div class="card p-4">
+    <h3 class="fw-bold">2) Edit Website Content</h3>
+    <form id="adminForm" class="row g-3 mt-1">
+      <div class="col-md-6"><label>Company</label><input class="form-control" name="company"></div>
+      <div class="col-md-6"><label>Location</label><input class="form-control" name="location"></div>
+      <div class="col-md-6"><label>Phone</label><input class="form-control" name="phone"></div>
+      <div class="col-md-6"><label>WhatsApp number, digits only</label><input class="form-control" name="whatsapp"></div>
+      <div class="col-md-6"><label>Email</label><input class="form-control" name="email"></div>
+      <div class="col-md-6"><label>Company number</label><input class="form-control" name="companyNo"></div>
+      <div class="col-12"><label>Hero title</label><input class="form-control" name="heroTitle"></div>
+      <div class="col-12"><label>Hero text</label><textarea class="form-control" rows="3" name="heroText"></textarea></div>
+      <div class="col-12"><label>About text</label><textarea class="form-control" rows="4" name="aboutText"></textarea></div>
+      <div class="col-md-6"><label>Number of vans/stat</label><input class="form-control" name="stat1"></div>
+      <div class="col-md-6"><label>SIC / Service line</label><input class="form-control" name="sic"></div>
+      <div class="col-12"><label>Registered office</label><input class="form-control" name="registeredOffice"></div>
+      <div class="col-12 d-flex gap-2 flex-wrap"><button class="btn btn-success" type="submit">Publish to GitHub</button><button class="btn btn-outline-secondary" type="button" onclick="downloadJson()">Download data.json</button></div>
+    </form>
+  </div>
+</div>
+<script>
+const defaults={company:"Adnan's Transport Limited",location:'Bury, Greater Manchester',phone:'+44 7587 803270',whatsapp:'447587803270',email:'write2adnankh@hotmail.com',heroTitle:'Temperature Controlled Couriers for Food, Catering & Pharma',heroText:'Reliable B2B refrigerated transport from Greater Manchester, supporting food suppliers, restaurants, healthcare distributors and logistics operators across the UK.',aboutText:"Adnan's Transport Limited provides 3.5-ton temperature-controlled delivery support for businesses that need reliable chilled and frozen capacity without delays. We focus on professional communication, careful handling and flexible availability.",stat1:'2',companyNo:'15433324',registeredOffice:'27 Padiham Close, Bury, BL9 9NE, United Kingdom',sic:'49410 Freight transport by road'};
+let currentSha=null;
+function show(msg,type='info'){const s=document.getElementById('status');s.className='alert alert-'+type;s.textContent=msg;s.classList.remove('hidden');}
+function fill(data){const c={...defaults,...data};Object.entries(c).forEach(([k,v])=>{const el=document.querySelector(`[name="${k}"]`);if(el)el.value=v})}
+function getData(){return Object.fromEntries(new FormData(document.getElementById('adminForm')).entries())}
+function getCfg(){return {owner:owner.value.trim(),repo:repo.value.trim(),branch:branch.value.trim()||'main',token:token.value.trim()}}
+function saveSettings(){localStorage.setItem('atlGithubAdmin',JSON.stringify(getCfg()));show('Connection saved in this browser. Now click Load Content, then edit and Publish.','success')}
+function clearSettings(){localStorage.removeItem('atlGithubAdmin');token.value='';show('Saved GitHub token removed from this browser.','warning')}
+async function loadFromGithub(){const c=getCfg(); if(!c.owner||!c.repo||!c.token){show('Please enter username, repository and token first.','danger');return} saveSettings(); const url=`https://api.github.com/repos/${c.owner}/${c.repo}/contents/data.json?ref=${c.branch}`; const r=await fetch(url,{headers:{Authorization:`Bearer ${c.token}`,Accept:'application/vnd.github+json'}}); if(!r.ok){show('Could not load data.json. Check repo name, branch, token permission, and that data.json exists.','danger');return} const j=await r.json(); currentSha=j.sha; const text=decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))); fill(JSON.parse(text)); show('Content loaded from GitHub.','success')}
+async function publish(data){const c=getCfg(); if(!c.owner||!c.repo||!c.token){show('Please enter GitHub connection details first.','danger');return} const url=`https://api.github.com/repos/${c.owner}/${c.repo}/contents/data.json`; if(!currentSha){await loadFromGithub()} const content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2)))); const body={message:'Update website content from admin panel',content,branch:c.branch,sha:currentSha}; const r=await fetch(url,{method:'PUT',headers:{Authorization:`Bearer ${c.token}`,Accept:'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)}); if(!r.ok){const t=await r.text();show('Publish failed: '+t.slice(0,220),'danger');return} const j=await r.json(); currentSha=j.content.sha; show('Published successfully. GitHub Pages may take 1–3 minutes to show the update.','success')}
+document.getElementById('adminForm').addEventListener('submit',e=>{e.preventDefault();publish(getData())});
+function downloadJson(){const blob=new Blob([JSON.stringify(getData(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='data.json'; a.click();}
+(function init(){const saved=JSON.parse(localStorage.getItem('atlGithubAdmin')||'{}'); owner.value=saved.owner||''; repo.value=saved.repo||''; branch.value=saved.branch||'main'; token.value=saved.token||''; fetch('data.json?cache='+Date.now()).then(r=>r.json()).then(fill).catch(()=>fill(defaults));})();
+</script>
+</body>
+</html>
